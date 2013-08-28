@@ -37,6 +37,29 @@ class memoized_property(object):
         return self.__call__(obj)
 
 
+class class_property(classmethod):
+    '''
+        Simple decorator for a class method that takes no arguments and is used as a property.
+        NOTE: This works only for read-only properties; it does not handle getters, setters, or deleters like the built-in @property decorator.
+
+        Usage:
+            class MyClass(object):
+                @class_property
+                def name_of_method(cls):
+                    return some_value
+            MyClass.name_of_method
+            
+    '''
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, obj):
+        return self.func(obj)
+
+    def __get__(self, obj, objtype):
+        return self.__call__(objtype)
+
+
 class memoized_class_property(classmethod):
     '''
         Simple memoization (caching) decorator for a class method that takes no arguments and is used as a property.
