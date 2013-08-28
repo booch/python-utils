@@ -19,6 +19,16 @@ func_utils
     my_obj.name_of_method
 ```
 
+  * class_property - Simple decorator for a class method that takes no arguments and is used as a property.
+
+```python
+class MyClass(object):
+    @class_property
+    def name_of_method(cls):
+        return some_value
+MyClass.name_of_method
+```
+
   * memoized_class_property - Simple memoization (caching) decorator for a class method that takes no arguments and is used as a property.
  
 ```python
