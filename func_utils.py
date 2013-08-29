@@ -6,6 +6,8 @@ by Craig Buchek
 These took a lot of trial and error to get right, but seem to be working well now.
 I read through a lot of various other attempts to implement these (separately).
 I don't claim to understand Python decorators well - just well enough to get these to work like I wanted.
+
+WARNING: These decorators do not seem to be able to combine with each other or most other decorators.
 '''
 
 
@@ -69,8 +71,7 @@ class memoized(decorator):
             class MyClass(object):
                 @memoized
                 def name_of_method(self, arg1):
-                    value = something_that_takes_a_while_to_compute_or_has_size_effects(arg1)
-                    return value
+                    return something_that_takes_a_while_to_compute_or_has_side_effects(arg1)
             my_obj = MyClass()
             my_obj.name_of_method(123)
     '''
@@ -92,8 +93,7 @@ class memoized_property(decorator):
             class MyClass(object):
                 @memoized_property
                 def name_of_method(self):
-                    value = something_that_takes_a_while_to_compute_or_has_size_effects()
-                    return value
+                    return something_that_takes_a_while_to_compute_or_has_side_effects()
             my_obj = MyClass()
             my_obj.name_of_method
     '''
@@ -105,7 +105,7 @@ class memoized_property(decorator):
             instance._memoization_cache[self.function.__name__] = self.function(instance)
         return instance._memoization_cache[self.function.__name__]
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, klass):
         return self.__call__(instance)
 
 
@@ -138,8 +138,7 @@ class memoized_class_method(decorator):
             class MyClass(object):
                 @memoized_class_method
                 def name_of_method(cls, arg):
-                    value = something_that_takes_a_while_to_compute_or_has_size_effects(arg)
-                    return value
+                    return something_that_takes_a_while_to_compute_or_has_side_effects(arg)
             MyClass.name_of_method(123)
     '''
 
@@ -160,8 +159,7 @@ class memoized_class_property(decorator):
             class MyClass(object):
                 @memoized_class_property
                 def name_of_method(cls):
-                    value = something_that_takes_a_while_to_compute_or_has_size_effects()
-                    return value
+                    return something_that_takes_a_while_to_compute_or_has_side_effects()
             MyClass.name_of_method
             
     '''
