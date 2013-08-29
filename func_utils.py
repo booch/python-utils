@@ -168,3 +168,44 @@ class deprecated(decorator):
             lineno=self.function.func_code.co_firstlineno + 1
         )
         return self.function(*args, **kwargs)
+
+
+if __name__ == '__main__':
+    
+    class MyClass(object):
+        @class_property
+        def class_property(self):
+            print 'Generating class_property - should see this each time we are called'
+            return 'class_property'
+
+        @memoized_class_property
+        def memoized_class_property(self):
+            print 'Generating memoized_class_property - should only see this once'
+            return 'memoized_class_property'
+
+        @memoized_property
+        def memoized_property(self):
+            print 'Generating memoized_property - should only see this once'
+            return 'memoized_property'
+
+        @deprecated
+        def deprecated_method(self):
+            print 'Should see a deprecation warning when calling this.'
+            return 'deprecated_method'
+
+        @deprecated('custom deprecation message')
+        def deprecated_method_with_custom_message(self):
+            print 'Should see a custom deprecation warning when calling this.'
+            return 'deprecated_method_with_custom_message'
+
+
+    my_obj = MyClass()
+    print MyClass.class_property
+    print MyClass.class_property
+    print MyClass.memoized_class_property
+    print MyClass.memoized_class_property
+    print my_obj.memoized_property
+    print my_obj.memoized_property
+    print my_obj.deprecated_method()
+    print my_obj.deprecated_method_with_custom_message()
+
