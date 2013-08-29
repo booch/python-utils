@@ -40,3 +40,15 @@ MyClass.name_of_method
     MyClass.name_of_method
 ```
   
+  * deprecated
+
+```python
+    class MyClass(object):
+        @deprecated
+        def deprecated_method(self):
+            print 'Should see a deprecation warning when calling this.'
+
+        @deprecated('custom deprecation message')
+        def deprecated_method_with_custom_message(self):
+            print 'Should see a custom deprecation warning when calling this.'
+```
