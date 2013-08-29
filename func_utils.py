@@ -138,3 +138,33 @@ class memoized_class_property(classmethod):
 
     def __get__(self, obj, objtype):
         return self.__call__(objtype)
+
+
+import warnings
+class deprecated(decorator):
+    '''
+        Decorator to declare that a function has been deprecated. Allows optionally providing a string with more information.
+
+        Usage:
+            class MyClass(object):
+                @deprecated
+                def some_function(self):
+                    do_something()
+                @deprecated('Use some_other_function().')
+                def another_function(self):
+                    do_something()
+
+    '''
+   
+    def _do_(self, *args, **kwargs):
+        if self.args:
+            message = 'Function "%s" is deprecated - %s' % (self.function.__name__, self.args[0])
+        else:
+            message = 'Function "%s" is deprecated' % self.function.__name__
+        print 'WARNING: %s' % message
+        warnings.warn_explicit(message,
+            category=DeprecationWarning,
+            filename=self.function.func_code.co_filename,
+            lineno=self.function.func_code.co_firstlineno + 1
+        )
+        return self.function(*args, **kwargs)
