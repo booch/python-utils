@@ -39,7 +39,18 @@ MyClass.name_of_method
             return value
     MyClass.name_of_method
 ```
+
+  * memoized_class_method - Simple memoization (caching) decorator for a class method.
   
+```python
+    class MyClass(object):
+        @memoized_class_method
+        def name_of_method(cls, arg):
+            value = something_that_takes_a_while_to_compute_or_has_size_effects(arg)
+            return value
+    MyClass.name_of_method(arg)
+```
+
   * deprecated
 
 ```python
