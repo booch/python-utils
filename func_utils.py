@@ -12,9 +12,10 @@ I don't claim to understand Python decorators well - just well enough to get the
 class decorator(object):
     '''
         Base class for "polite" decorators.
+        Handles decorators with or without parameters. (They work VERY differently!) 
         Adapted from https://gist.github.com/kylebgorman/5878715 and http://www.artima.com/weblogs/viewpost.jsp?thread=240845.
 
-        Usage - subclass from decorator, and override _do_():
+        Usage - subclass from decorator, and override _do_().
             class my_decorator(decorator):
                 def _do_(self, instance, *args, **kwargs):
                     do_something_before_decorated_function()
@@ -58,10 +59,8 @@ class decorator(object):
     def _do_(self, instance, *args, **kwargs):
         return self.function(instance, *args, **kwargs)
 
-    # Define __get__ if you want to make the function behave like a property instead of a method.
 
-
-class memoized_property(object):
+class memoized_property(decorator):
     '''
         Simple memoization (caching) decorator for a method that takes no arguments and is used as a property.
         NOTE: This works only for read-only properties; it does not handle getters, setters, or deleters like the built-in @property decorator.
@@ -75,21 +74,19 @@ class memoized_property(object):
             my_obj = MyClass()
             my_obj.name_of_method
     '''
-    def __init__(self, func):
-        self.func = func
 
-    def __call__(self, obj):
-        if not hasattr(obj, '_memoization_cache'):
-            obj._memoization_cache = {}
-        if not obj._memoization_cache.has_key(self.func.__name__):
-            obj._memoization_cache[self.func.__name__] = self.func(obj)
-        return obj._memoization_cache[self.func.__name__]
+    def _do_(self, instance, *args, **kwards):
+        if not hasattr(instance, '_memoization_cache'):
+            instance._memoization_cache = {}
+        if not instance._memoization_cache.has_key(self.function.__name__):
+            instance._memoization_cache[self.function.__name__] = self.function(instance)
+        return instance._memoization_cache[self.function.__name__]
 
-    def __get__(self, obj, objtype):
-        return self.__call__(obj)
+    def __get__(self, instance, owner):
+        return self.__call__(instance)
 
 
-class class_property(classmethod):
+class class_property(decorator, classmethod):
     '''
         Simple decorator for a class method that takes no arguments and is used as a property.
         NOTE: This works only for read-only properties; it does not handle getters, setters, or deleters like the built-in @property decorator.
@@ -100,19 +97,16 @@ class class_property(classmethod):
                 def name_of_method(cls):
                     return some_value
             MyClass.name_of_method
-            
     '''
-    def __init__(self, func):
-        self.func = func
 
-    def __call__(self, obj):
-        return self.func(obj)
+    def _do_(self, instance, *args, **kwards):
+        return self.function(instance)
 
-    def __get__(self, obj, objtype):
-        return self.__call__(objtype)
+    def __get__(self, instance, klass):
+        return self.__call__(klass)
 
 
-class memoized_class_property(classmethod):
+class memoized_class_property(decorator, classmethod):
     '''
         Simple memoization (caching) decorator for a class method that takes no arguments and is used as a property.
         NOTE: This works only for read-only properties; it does not handle getters, setters, or deleters like the built-in @property decorator.
@@ -126,18 +120,16 @@ class memoized_class_property(classmethod):
             MyClass.name_of_method
             
     '''
-    def __init__(self, func):
-        self.func = func
 
-    def __call__(self, obj):
-        if not hasattr(obj, '_memoization_cache'):
-            obj._memoization_cache = {}
-        if not obj._memoization_cache.has_key(self.func.__name__):
-            obj._memoization_cache[self.func.__name__] = self.func(obj)
-        return obj._memoization_cache[self.func.__name__]
+    def _do_(self, klass, *args, **kwards):
+        if not hasattr(klass, '_memoization_cache'):
+            klass._memoization_cache = {}
+        if not klass._memoization_cache.has_key(self.function.__name__):
+            klass._memoization_cache[self.function.__name__] = self.function(klass)
+        return klass._memoization_cache[self.function.__name__]
 
-    def __get__(self, obj, objtype):
-        return self.__call__(objtype)
+    def __get__(self, instance, klass):
+        return self.__call__(klass)
 
 
 import warnings
@@ -155,7 +147,7 @@ class deprecated(decorator):
                     do_something()
 
     '''
-   
+
     def _do_(self, *args, **kwargs):
         if self.args:
             message = 'Function "%s" is deprecated - %s' % (self.function.__name__, self.args[0])
@@ -170,9 +162,15 @@ class deprecated(decorator):
         return self.function(*args, **kwargs)
 
 
+
 if __name__ == '__main__':
     
     class MyClass(object):
+        '''
+            Test that we can use all the decorators defined in this file.
+            NOTE: You'll need to manually check the output to make sure everything worked as expected.
+        '''
+
         @class_property
         def class_property(self):
             print 'Generating class_property - should see this each time we are called'
@@ -208,4 +206,3 @@ if __name__ == '__main__':
     print my_obj.memoized_property
     print my_obj.deprecated_method()
     print my_obj.deprecated_method_with_custom_message()
-
