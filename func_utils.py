@@ -60,6 +60,29 @@ class decorator(object):
         return self.function(instance, *args, **kwargs)
 
 
+class memoized(decorator):
+    '''
+        Simple memoization (caching) decorator.
+        NOTE: Does not handle keyword arguments.
+
+        Usage:
+            class MyClass(object):
+                @memoized
+                def name_of_method(self, arg1):
+                    value = something_that_takes_a_while_to_compute_or_has_size_effects(arg1)
+                    return value
+            my_obj = MyClass()
+            my_obj.name_of_method(123)
+    '''
+
+    def _do_(self, instance, *args, **kwargs):
+        if not hasattr(instance, '_memoization_cache'):
+            instance._memoization_cache = {}
+        if not instance._memoization_cache.has_key((self.function.__name__, args)):
+            instance._memoization_cache[(self.function.__name__, args)] = self.function(instance, *args, **kwargs)
+        return instance._memoization_cache[(self.function.__name__, args)]
+
+
 class memoized_property(decorator):
     '''
         Simple memoization (caching) decorator for a method that takes no arguments and is used as a property.
@@ -75,7 +98,7 @@ class memoized_property(decorator):
             my_obj.name_of_method
     '''
 
-    def _do_(self, instance, *args, **kwards):
+    def _do_(self, instance, *args, **kwargs):
         if not hasattr(instance, '_memoization_cache'):
             instance._memoization_cache = {}
         if not instance._memoization_cache.has_key(self.function.__name__):
@@ -99,14 +122,36 @@ class class_property(decorator, classmethod):
             MyClass.name_of_method
     '''
 
-    def _do_(self, instance, *args, **kwards):
+    def _do_(self, instance, *args, **kwargs):
         return self.function(instance)
 
     def __get__(self, instance, klass):
         return self.__call__(klass)
 
 
-class memoized_class_property(decorator, classmethod):
+class memoized_class_method(decorator):
+    '''
+        Simple memoization (caching) decorator for a class method.
+        NOTE: Does not handle keyword arguments.
+
+        Usage:
+            class MyClass(object):
+                @memoized_class_method
+                def name_of_method(cls, arg):
+                    value = something_that_takes_a_while_to_compute_or_has_size_effects(arg)
+                    return value
+            MyClass.name_of_method(123)
+    '''
+
+    def _do_(self, klass, *args, **kwargs):
+        if not hasattr(klass, '_memoization_cache'):
+            klass._memoization_cache = {}
+        if not klass._memoization_cache.has_key((self.function.__name__, args)):
+            klass._memoization_cache[(self.function.__name__, args)] = self.function(klass, *args)
+        return klass._memoization_cache[(self.function.__name__, args)]
+
+
+class memoized_class_property(decorator):
     '''
         Simple memoization (caching) decorator for a class method that takes no arguments and is used as a property.
         NOTE: This works only for read-only properties; it does not handle getters, setters, or deleters like the built-in @property decorator.
@@ -121,7 +166,7 @@ class memoized_class_property(decorator, classmethod):
             
     '''
 
-    def _do_(self, klass, *args, **kwards):
+    def _do_(self, klass, *args, **kwargs):
         if not hasattr(klass, '_memoization_cache'):
             klass._memoization_cache = {}
         if not klass._memoization_cache.has_key(self.function.__name__):
@@ -176,10 +221,20 @@ if __name__ == '__main__':
             print 'Generating class_property - should see this each time we are called'
             return 'class_property'
 
+        @memoized_class_method
+        def memoized_class_method(self, arg1):
+            print 'Generating memoized_class_method(%s) - should only see this once for each set of arguments' % arg1
+            return 'memoized_class_property(%s)' % arg1
+
         @memoized_class_property
         def memoized_class_property(self):
             print 'Generating memoized_class_property - should only see this once'
             return 'memoized_class_property'
+
+        @memoized
+        def memoized_method(self, arg1, arg2):
+            print 'Generating memoized_method(%s, %s) - should only see this once for each set of arguments' % (arg1, arg2)
+            return 'memoized_method(%s, %s)' % (arg1, arg2)
 
         @memoized_property
         def memoized_property(self):
@@ -200,8 +255,16 @@ if __name__ == '__main__':
     my_obj = MyClass()
     print MyClass.class_property
     print MyClass.class_property
+    print MyClass.memoized_class_method(1)
+    print MyClass.memoized_class_method(1)
+    print MyClass.memoized_class_method(2)
+    print MyClass.memoized_class_method(2)
     print MyClass.memoized_class_property
     print MyClass.memoized_class_property
+    print my_obj.memoized_method(1,2)
+    print my_obj.memoized_method(1,2)
+    print my_obj.memoized_method(3,4)
+    print my_obj.memoized_method(3,4)
     print my_obj.memoized_property
     print my_obj.memoized_property
     print my_obj.deprecated_method()
