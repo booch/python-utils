@@ -11,6 +11,9 @@ WARNING: These decorators do not seem to be able to combine with each other or m
 '''
 
 
+import functools
+
+
 class decorator(object):
     '''
         Base class for "polite" decorators.
@@ -27,11 +30,13 @@ class decorator(object):
     '''
 
     def __init__(self, *args, **kwargs):
-        if callable(args[0]):
+        if len(args) == 1 and callable(args[0]):
+            # The decorator was called without any arguments.
             self.function = args[0]
-            self.args = list(args).remove(args[0])
-            self.kwargs = kwargs
+            self.args = None
+            self.kwargs = None
         else:
+            # The decorate was called with arguments. We'll have to wait until the call to __call__ to get the function to decorate.
             self.function = None
             self.args = args
             self.kwargs = kwargs
@@ -50,16 +55,20 @@ class decorator(object):
 
     def __call__(self, *args, **kwargs):
         if self.function:
-            return self._do_(self, *args, **kwargs)
+            return self._do_(*args, **kwargs)
         else:
             self.function = args[0]
             def wrapped_function(instance, *wrapped_args, **wrapped_kwargs):
                 return self._do_(instance, *wrapped_args, **wrapped_kwargs)
             return wrapped_function
 
+    # Override this to act as a property.
+    def __get__(self, instance, klass=None):
+        return functools.partial(self.__call__, instance)
+
     # Override this!
-    def _do_(self, instance, *args, **kwargs):
-        return self.function(instance, *args, **kwargs)
+    def _do_(self, *args, **kwargs):
+        return self.function(*args, **kwargs)
 
 
 class memoized(decorator):
@@ -76,12 +85,12 @@ class memoized(decorator):
             my_obj.name_of_method(123)
     '''
 
-    def _do_(self, instance, *args, **kwargs):
-        if not hasattr(instance, '_memoization_cache'):
-            instance._memoization_cache = {}
-        if not instance._memoization_cache.has_key((self.function.__name__, args)):
-            instance._memoization_cache[(self.function.__name__, args)] = self.function(instance, *args, **kwargs)
-        return instance._memoization_cache[(self.function.__name__, args)]
+    def _do_(self, *args, **kwargs):
+        if not hasattr(self, '_memoization_cache'):
+            self._memoization_cache = {}
+        if not self._memoization_cache.has_key((self.function.__name__, args)):
+            self._memoization_cache[(self.function.__name__, args)] = self.function(*args, **kwargs)
+        return self._memoization_cache[(self.function.__name__, args)]
 
 
 class memoized_property(decorator):
@@ -98,18 +107,18 @@ class memoized_property(decorator):
             my_obj.name_of_method
     '''
 
-    def _do_(self, instance, *args, **kwargs):
+    def _do_(self, instance):
         if not hasattr(instance, '_memoization_cache'):
             instance._memoization_cache = {}
         if not instance._memoization_cache.has_key(self.function.__name__):
             instance._memoization_cache[self.function.__name__] = self.function(instance)
         return instance._memoization_cache[self.function.__name__]
 
-    def __get__(self, instance, klass):
+    def __get__(self, instance, klass=None):
         return self.__call__(instance)
 
 
-class class_property(decorator, classmethod):
+class class_property(decorator):
     '''
         Simple decorator for a class method that takes no arguments and is used as a property.
         NOTE: This works only for read-only properties; it does not handle getters, setters, or deleters like the built-in @property decorator.
@@ -122,7 +131,7 @@ class class_property(decorator, classmethod):
             MyClass.name_of_method
     '''
 
-    def _do_(self, instance, *args, **kwargs):
+    def _do_(self, instance):
         return self.function(instance)
 
     def __get__(self, instance, klass):
@@ -142,12 +151,12 @@ class memoized_class_method(decorator):
             MyClass.name_of_method(123)
     '''
 
-    def _do_(self, klass, *args, **kwargs):
-        if not hasattr(klass, '_memoization_cache'):
-            klass._memoization_cache = {}
-        if not klass._memoization_cache.has_key((self.function.__name__, args)):
-            klass._memoization_cache[(self.function.__name__, args)] = self.function(klass, *args)
-        return klass._memoization_cache[(self.function.__name__, args)]
+    def _do_(self, *args, **kwargs):
+        if not hasattr(self, '_memoization_cache'):
+            self._memoization_cache = {}
+        if not self._memoization_cache.has_key((self.function.__name__, args)):
+            self._memoization_cache[(self.function.__name__, args)] = self.function(*args)
+        return self._memoization_cache[(self.function.__name__, args)]
 
 
 class memoized_class_property(decorator):
@@ -214,16 +223,19 @@ if __name__ == '__main__':
             NOTE: You'll need to manually check the output to make sure everything worked as expected.
         '''
 
+        def __init__(self, x):
+            self.x = x
+
         @class_property
         def class_property(self):
             print 'Generating class_property - should see this each time we are called'
             return 'class_property'
-
+ 
         @memoized_class_method
         def memoized_class_method(self, arg1):
             print 'Generating memoized_class_method(%s) - should only see this once for each set of arguments' % arg1
             return 'memoized_class_property(%s)' % arg1
-
+ 
         @memoized_class_property
         def memoized_class_property(self):
             print 'Generating memoized_class_property - should only see this once'
@@ -232,25 +244,25 @@ if __name__ == '__main__':
         @memoized
         def memoized_method(self, arg1, arg2):
             print 'Generating memoized_method(%s, %s) - should only see this once for each set of arguments' % (arg1, arg2)
-            return 'memoized_method(%s, %s)' % (arg1, arg2)
+            return 'memoized_method(%s, %s) (x=%s)' % (arg1, arg2, self.x)
 
         @memoized_property
         def memoized_property(self):
             print 'Generating memoized_property - should only see this once'
-            return 'memoized_property'
+            return 'memoized_property (x=%s)' % self.x
 
         @deprecated
         def deprecated_method(self):
             print 'Should see a deprecation warning when calling this.'
             return 'deprecated_method'
-
+ 
         @deprecated('custom deprecation message')
         def deprecated_method_with_custom_message(self):
             print 'Should see a custom deprecation warning when calling this.'
             return 'deprecated_method_with_custom_message'
 
 
-    my_obj = MyClass()
+    my_obj = MyClass('my_obj')
     print MyClass.class_property
     print MyClass.class_property
     print MyClass.memoized_class_method(1)
